@@ -1,190 +1,203 @@
 #include <iostream>
-#include <vector>
-#include <utility>
-
+#include <queue>
 using namespace std;
 
-int dfs(int g_size,vector<vector<int>> visit,int sx,int sy);
-int getHole(int **graph,int g_size);
+void hungarianAlgorithm(int g_size,int **graph,int g1_size,int* g1,int g2_size,int* g2){
+    //cout<<"start"<<endl;
+    int i,j,k;
+    //初始化匹配树
+    int **match=new int*[g_size];
+    for(i=0;i<g_size;i++)
+        match[i]=new int[g_size];
+    for(i=0;i<g_size;i++)
+        for(j=0;j<g_size;j++)
+            match[i][j]=0;
 
+    //标记节点的访问，用于生成一棵交替路径树
+    int *visit=new int[g_size];
+    queue<int> father,son;
+    //h_tree存储交替路径树，并用于发现增广路径
+    int **h_tree=new int*[g_size];
+    for(i=0;i<g_size;i++)
+        h_tree[i]=new int[g_size];
 
-/*
- * visit中:
- * visit[i][j]=0,表示所有非障碍点
- * visit[i][j]=1,表示障碍
- * visit[i][j]=2,表示连接外界的点,未被障碍围起来
- * visit[i][j]=3,表示所有没有被障碍围起来的点
- * visit[i][j]=4,表示被围起来的非障碍点
- *
-*/
-int getHole(int **graph,int g_size){
-    vector<vector<int>> visit(g_size,vector<int>(g_size,1));
-    for(int i=0;i<g_size;i++) {
-        if (graph[i][0] == 0)
-            visit[i][0]=2;
-        if(graph[i][g_size-1]==0)
-            visit[i][g_size-1]=2;
-        if(graph[0][i]==0)
-            visit[0][i]=2;
-        if(graph[g_size-1][i]==0)
-            visit[g_size-1][i]=2;
-    }
-    for(int i=1;i<g_size-1;i++)
-        for(int j=1;j<g_size-1;j++)
-            visit[i][j]=graph[i][j];
+    bool jump,free,hasfreenode;
+    int fnode,snode,i_node,t_node;
 
-    int count=dfs(g_size,visit,0,0);
-    cout<< count<<endl;
-    return 0;
-}
-
-int dfs(int g_size,vector<vector<int>> visit,int sx,int sy){
-    //cout<<"start\n";
-    vector<pair<int,int>> path;
-    path.emplace_back(make_pair(sx,sy));
-    visit[sx][sy]=3;
-    pair<int,int> cpoint;
-    int nx,ny,i,j;
-    bool back;
-    while(!path.empty()){
-        back=true;
-        cpoint=path.back();
-        //cout<<cpoint.first<<' '<<cpoint.second<<endl;
-        for(i=0;i<4;i++){
-            if(i==0)
-                nx=cpoint.first-1,ny=cpoint.second;
-            if(i==1)
-                nx=cpoint.first+1,ny=cpoint.second;
-            if(i==2)
-                nx=cpoint.first,ny=cpoint.second-1;
-            if(i==3)
-                nx=cpoint.first,ny=cpoint.second+1;
-
-            if((nx>=0&&nx<=g_size-1&&ny>=0&&ny<=g_size-1)&&(visit[nx][ny]==0||visit[nx][ny]==2)) {
-                visit[nx][ny]=3;
-                path.emplace_back(make_pair(nx,ny));
-                back=false;
+    free=true;
+    while(free) {
+        free=false;
+        i_node = -1;
+        for (i = 0; i < g1_size; i++) {
+            jump = false;
+            for (j = 0; j < g2_size; j++)
+                if (match[g1[i]][g2[j]] == 1) {
+                    jump = true;
+                    break;
+                }
+            if (!jump) {
+                i_node = g1[i];
                 break;
             }
         }
-        if(back) {
-            path.pop_back();
-            if(path.empty())
-                for(i=0;i<g_size&&back;i++)
-                    for(j=0;j<g_size&&back;j++)
-                        if(visit[i][j]==2) {
-                            visit[i][j]=3;
-                            path.emplace_back(make_pair(i, j));
-                            back=false;
+
+        if (i_node > -1) {
+            for(i=0;i<g_size;i++)
+                visit[i]=0;
+            visit[i_node] = 1;
+            father.push(i_node);
+            //初始化交替路径树
+            for (j = 0; j < g_size; j++)
+                for (k = 0; k < g_size; k++)
+                    h_tree[j][k] = 0;
+
+            while (true) {
+                while (!father.empty()) {
+                    fnode = father.front();
+                    father.pop();
+                    for (j = 0; j < g2_size; j++) {
+                        if (visit[g2[j]] == 0 && graph[fnode][g2[j]] == 1 &&
+                            match[fnode][g2[j]] == 0) {             //g1到g2的未匹配边（i，j）
+                            h_tree[fnode][g2[j]] = 1;
+                            visit[g2[j]] = 1;
+                            son.push(g2[j]);
                         }
-        }
-    }
-
-    back=true;
-    for(i=0;i<g_size&&back;i++)
-        for(j=0;j<g_size&&back;j++)
-            if(visit[i][j]==0) {
-                visit[i][j]=4;
-                path.emplace_back(make_pair(i, j));
-                back=false;
-            }
-    int count=0;
-    if(!path.empty())
-        count++;
-    while(!path.empty()){
-        back=true;
-        cpoint=path.back();
-        for(i=0;i<4;i++){
-            if(i==0)
-                nx=cpoint.first-1,ny=cpoint.second;
-            if(i==1)
-                nx=cpoint.first+1,ny=cpoint.second;
-            if(i==2)
-                nx=cpoint.first,ny=cpoint.second-1;
-            if(i==3)
-                nx=cpoint.first,ny=cpoint.second+1;
-
-            if(visit[nx][ny]==0) {
-                visit[nx][ny]=4;
-                path.emplace_back(make_pair(nx,ny));
-                back=false;
-                break;
-            }
-        }
-        if(back) {
-            path.pop_back();
-            if(path.empty())
-                for (i = 0; i < g_size && back; i++)
-                    for (j = 0; j < g_size && back; j++)
-                        if (visit[i][j] == 0) {
-                            visit[i][j] = 4;
-                            path.emplace_back(make_pair(i, j));
-                            count++;
-                            back = false;
+                    }
+                }
+                while (!son.empty()) {
+                    snode = son.front();
+                    son.pop();
+                    hasfreenode = true;
+                    for (j = 0; j < g1_size; j++) {
+                        if (visit[g1[j]] == 0 && match[snode][g1[j]] == 1) {     //g2到g1的匹配边
+                            h_tree[snode][g1[j]] = 1;
+                            visit[g1[j]] = 1;
+                            father.push(g1[j]);
+                            hasfreenode = false;
+                            break;
                         }
+                    }
+                    if (hasfreenode) {
+                        t_node = snode;
+                        free = true;
+                    }
+                }
+                if (father.empty())
+                    break;
+            }
+        }
+        if (free) {
+            int tmp;
+            bool augment = true;
+            while (augment) {
+                augment = false;
+                for (j = 0; j < g_size; j++) {
+                    if (h_tree[j][t_node] == 1) {
+                        tmp = 1 - match[j][t_node];
+                        match[j][t_node] = tmp;
+                        match[t_node][j] = tmp;
+                        t_node = j;
+                        augment = true;
+                        break;
+                    }
+                }
+            }
         }
     }
 
-    for(i=0;i<g_size;i++) {
-        for (j = 0; j < g_size; j++)
-            cout << visit[i][j] << ' ';
-        cout<<endl;
-    }
 
-    return count;
+    for(i=0;i<g_size-1;i++) {
+        for (j = i+1; j < g_size; j++) {
+            if (match[i][j] > 0)
+                cout << i << ' ' << j << ' ' << endl;
+        }
+    }
 }
 
 int main(){
     int g_size;
     cin>>g_size;
     int **graph=new int*[g_size];
-    for(int i=0;i<g_size;i++)
+    int i,j;
+    for(i=0;i<g_size;i++)
         graph[i]=new int[g_size];
-    for(int i=0;i<g_size;i++)
-        for(int j=0;j<g_size;j++)
-            cin>>graph[i][j];
-    //cout<<"input finished\n";
-    getHole(graph,g_size);
+    for(i=0;i<g_size;i++)
+        for(j=0;j<g_size;j++)
+            graph[i][j]=0;
+    int g1_size,g2_size;
+    cin>>g1_size>>g2_size;
+    int *g1=new int[g1_size];
+    int *g2=new int[g2_size];
+    for(i=0;i<g1_size;i++)
+        cin>>g1[i];
+    for(i=0;i<g2_size;i++)
+        cin>>g2[i];
+    int edges,left,right;
+    cin>>edges;
+    for(i=0;i<edges;i++){
+        cin>>left>>right;
+        graph[left][right]=1;
+        graph[right][left]=1;
+    }
+
+    hungarianAlgorithm(g_size,graph,g1_size,g1,g2_size,g2);
+
     return 0;
 }
 
 /*
  *
- *
- *
-判断一张图中由四连接障碍围成的区域有多少个hole
-围棋中棋子气为零的区域
-
- 思路：
- 1.设一个辅助访问矩阵，visit[i][j]=0
- 2.选出所有的边界不是障碍的点，记为visit[i][j]=1
- 3.对visit中所有的点进行dfs或者bfs，直到标记所有可达点visit[i][j]=-1
- 4.对visit中visit[i][j]=0的点进行dfs，判断有多少个dfs，即为多少个hole
-
 input:
 10
-0 0 0 0 0 0 0 0 0 0
-0 1 0 0 0 0 1 0 1 1
-0 1 1 1 0 0 1 0 1 1
-0 1 0 0 1 0 1 1 1 0
-0 1 0 0 1 0 0 1 0 1
-1 1 1 1 1 0 0 0 0 0
-0 1 0 0 1 0 1 0 0 1
-1 0 0 0 1 1 0 0 0 1
-1 0 0 0 1 0 1 0 0 1
-1 1 1 1 1 1 1 1 1 1
+5 5
+0 2 4 6 8
+1 3 5 7 9
+10
+0 1
+0 3
+1 2
+2 3
+2 5
+3 4
+5 6
+5 8
+6 7
+6 9
 
 output:
-3 3 3 3 3 3 3 3 3 3
-3 1 3 3 3 3 1 3 1 1
-3 1 1 1 3 3 1 3 1 1
-3 1 4 4 1 3 1 1 1 3
-3 1 4 4 1 3 3 1 3 1
-1 1 1 1 1 3 3 3 3 3
-3 1 4 4 1 3 1 3 3 1
-1 4 4 4 1 1 3 3 3 1
-1 4 4 4 1 4 1 3 3 1
-1 1 1 1 1 1 1 1 1 1
-3
+0 1
+2 5
+3 4
+6 9
 
+input:
+12
+6 6
+1 3 6 8 9 11
+2 4 5 7 10 12
+17
+0 1
+0 4
+1 2
+1 5
+2 3
+2 6
+3 7
+4 5
+4 8
+5 6
+5 9
+6 7
+6 10
+7 11
+8 9
+9 10
+10 11
+
+output:
+1 2 
+3 7 
+4 8 
+5 9 
+6 10
  */
